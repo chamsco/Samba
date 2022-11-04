@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id                    String        @id @default(uuid())
+  Nom                   String?
+  Prenom                String?
+  Phone_Number          String?       @unique
+  phone_number_verified Boolean       @default(false)
+  email                 String?       @unique
+  email_verified        Boolean       @default(false)
+  image                 String?
+  BirthdayDate          DateTime?
+  role                  RoleEnumType? @default(user)
+  Order                 Order[]
+  Order_Items           Order_Items[]
+  Wishlist              Wishlist[]
+  Shop                  Shop[]
+  accounts              Accounts[]
+  Comments       ProductComments[]
+}
+
+model Accounts {
+  id                       String        @id @default(uuid())
+  userId                   String        @default(uuid()) 
+  username                 String?       @unique
+  type                     RoleEnumType? @default(user)
+  password                 String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?   @db.Text
+  refresh_token_expires_in Int?
+  access_token             String?   @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?   @db.Text
+  session_state            String?
+  oauth_token_secret       String?
+  oauth_token              String?
+  createdAt                DateTime? @default(now())
+  updatedAt                DateTime? @updatedAt
+  user                     Users      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Shop {
+  id            String            @id @default(uuid())
+  name          String
+  createdAt     DateTime?       @default(now())
+  updatedAt     DateTime?       @updatedAt
+  description   String?         @db.Text
+  products      Product[]
+  owner_id       String    @default(uuid())
+  owner          Users     @relation(fields: [owner_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "shop_owner_user_id_foreign")
+  @@map("shop")
+}
+
+
+enum RoleEnumType {
+  user
+  shop
+  admin
+}
+
+model Product {
+  id              String            @id @default(uuid())
+  name            String
+  description     String
+  created_at      DateTime          @db.Timestamp(0)
+  Order_Items     Order_Items[]
+  Wishlist        Wishlist[]
+  Product_Details Product_Details[]
+  Cover_Image     String?
+  available       Boolean?          @default(true)
+  Shop            Shop              @relation(fields: [shop_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "product_shop_id_foreign")
+  shop_id         String            @default(uuid())
+  Category        ProductCategory   @relation(fields: [cat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_item_order_id_foreign")
+  cat_id          String            @default(uuid())
+  Subcategory     Subcategory       @relation(fields: [sub_cat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_item_product_id_foreign")
+  sub_cat_id      String            @default(uuid())
+  productTags     ProductTags[]
+  productComments   ProductComments[]
+  @@map("product")
+}
+
+
+model Product_Details {
+  id         String    @id @default(uuid())
+  SKU        String    @unique
+  available  Boolean
+  price      Decimal   @db.Decimal(8, 2)
+  Size       String
+  Colour     String
+  product_image String?
+  ordered_at DateTime? @db.Timestamp(0)
+  product_id String    @default(uuid())
+  Product    Product   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "product_to_detail_id_foreign")
+}
+
+model ProductTags {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String    @db.Text
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
+  product_id  String @default(uuid())
+  Product    Product   @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "product_tags_id_foreign")
+  @@map("product_tags")
+}
+
+model ProductComments {
+  id                String                 @id @default(uuid())
+  productId         String                  @default(uuid())
+  authorId          String                 @default(uuid())  
+  type              ProductCommentsType?   @default(REVIEW)
+  status            ProductCommentsStatus? @default(PENDING)
+  rating            Int?                   @default(0)
+  description       String?                @db.Text
+  createdAt         DateTime?              @default(now())
+  updatedAt         DateTime?              @updatedAt
+  authorid          Users                  @relation(fields: [authorId], references: [id])
+  product           Product                @relation(fields: [productId], references: [id])
+  @@index([authorId], map: "product_comments_author_Id_fkey")
+  @@index([productId], map: "product_comments_product_Id_fkey")
+  @@map("product_comments")
+  
+}
+
+model ProductCategory {
+  id                   String         @id @default(uuid())
+  productCategoriesId  String?        
+  category_name        String         @unique
+  description          String         @db.Text
+  image                String?
+  icon                 String?
+  createdAt            DateTime?       @default(now())
+  updatedAt            DateTime?       @updatedAt
+  isSubCategory         Boolean        @default(false)
+  productCategories    ProductCategory?  @relation("ProductCategoriesToProductCategories", fields: [productCategoriesId], references: [id])
+  subProductCategories ProductCategory[] @relation("ProductCategoriesToProductCategories")  
+  Product       Product[]
+  Subcategory   Subcategory[]
+  @@index([productCategoriesId], map: "product_categories_productCategories_Id_fkey")
+  @@map("product_categories")
+}
+
+model Subcategory {
+  id           String    @id @default(uuid())
+  Cat_id       String    @default(uuid())
+  sub_cat_name String
+  Product      Product[]
+  Category     ProductCategory @relation(fields: [Cat_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "subcategory_cat_id_foreign")
+}
+
+
+
+model Discount {
+  id         String @id @default(uuid())
+  code       String
+  percentage Int
+  shop_id    Int
+}
+
+model Order {
+  id              String        @id @default(uuid())
+  total           Int
+  Ngbh            String
+  city            String
+  country         String
+  address_details String
+  ordered         Boolean
+  user_id         String        @default(uuid())
+  ordered_at      DateTime      @db.Timestamp(0)
+  Users           Users         @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "order_user_id_foreign")
+  Order_Items     Order_Items[]
+}
+
+model Order_Items {
+  id         String   @id @default(uuid())
+  quantity   Int
+  product_id String   @default(uuid())
+  order_id   String   @default(uuid())
+  ordered_at DateTime @db.Timestamp(0)
+  user_id    String   @default(uuid())
+  Order      Order    @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_item_order_id_foreign")
+  Product    Product  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_item_product_id_foreign")
+  Users      Users    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "orders_item_user_id_foreign")
+}
+
+
+
+model Voucher {
+  id   String  @id @default(uuid())
+  name String?
+}
+
+model Wishlist {
+  id             String         @id @default(uuid())
+  product_id     String         @default(uuid())
+  user_id        String         @default(uuid())
+  wishlisted_at  DateTime       @db.Timestamp(0)
+  group_id       String         @default(uuid())
+  Wishlist_Group Wishlist_Group @relation(fields: [group_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "wishlist_group_id_foreign")
+  Product        Product        @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "wishlist_product_id_foreign")
+  Users          Users          @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "wishlist_user_id_foreign")
+}
+
+model Wishlist_Group {
+  id                  String     @id @default(uuid())
+  Wishlist_group_name String
+  Wishlist            Wishlist[]
+}
+
+enum ProductCommentsType {
+  REVIEW
+  DISCUSSION
+}
+
+enum ProductCommentsStatus {
+  APPROVED
+  PENDING
+}
